@@ -1,0 +1,28 @@
+version: '3.1'
+
+services:
+  db:
+    image: mongo
+    restart: always
+    volumes: 
+      - dbdata:/data/db mongoclient/mongoclient
+  
+  mongoclient:
+    image: mongoclient/mongoclient
+    ports:
+      - "8081:3000"
+    depends_on:
+      - db
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: always
+    depends_on: 
+      - db
+    ports:
+      - 8080:8080
+
+volumes:
+  dbdata:

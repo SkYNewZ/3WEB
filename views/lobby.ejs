@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Lobby</title>
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+  <style type="text/css">
+    #main-chat {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 400px;
+      height: 100%;
+      border: 1px solid black
+    }
+
+    form {
+      background: #000;
+      padding: 3px;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+    }
+
+    form input {
+      border: 0;
+      padding: 10px;
+      width: 90%;
+      margin-right: .5%;
+    }
+
+    form button {
+      width: 21%;
+      background: rgb(130, 224, 255);
+      border: none;
+      padding: 10px;
+    }
+
+    #messages {
+      list-style-type: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    #messages li {
+      padding: 5px 10px;
+    }
+
+    #messages li:nth-child(odd) {
+      background: #eee;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="/javascripts/socket.io.js"></script>
+  <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+
+  <!-- Main content -->
+  <a href="/api/auth/logout" id="logout-button" onclick="logoutUser()">Logout</a>
+  <p>Welcome
+    <%= user.username %>
+  </p>
+  <p>List off current connected players</p>
+  <ul id="user-connected"></ul>
+  <br>
+  <button>Quick fight</button>
+  <div id="main-chat">
+    <ul id="messages"></ul>
+    <form action="">
+      <input id="m" autocomplete="off" type="text" placeholder="Type your message">
+      <button>Send</button>
+    </form>
+  </div>
+  <!-- END MAIN CONTENT -->
+  <script>
+    // send when a user is connected
+    const userCo = '<%= user.username  %>';
+    const socket = io.connect('http://localhost:1234');
+
+    //send new user is connected
+    socket.emit('new_user', userCo);
+
+    // display users connected
+    $(function () {
+      socket.on('lobby_list_users', function (list) {
+        $('#user-connected').empty()
+        $.each(list, function (index, value) {
+          if (userCo === index) {
+            $('#user-connected').append($('<li>').text(index));
+          } else {
+            $('#user-connected').append($('<li>').append(`<a href='#' title='Invite ${index}' onclick='invite("${index}")'>${index}</a>`));
+          }
+        });
+      });
+    });
+
+
+    // disconnect user
+    function logoutUser() {
+      socket.emit('user_deco', userCo);
+    }
+
+    function invite(username) {
+      if (confirm(`Send inviation to ${username} ?`)) {
+        socket.emit('invitation', {
+          to: username,
+          from: userCo,
+          message: `${userCo} invite you to play !`
+        });
+      }
+    }
+
+    socket.on("receive_invitation", function (message) {
+      alert(message);
+    });
+
+
+    // chat
+    $('form').submit(function () {
+      socket.emit('chat_message', { message: $('#m').val(), user: userCo });
+      $('#messages').append($('<li>').text(userCo + ' : ' + $('#m').val()))
+      $('#m').val('');
+      return false;
+    });
+    socket.on('chat_message', function (msg) {
+      $('#messages').append($('<li>').text(msg.user + ' : ' + msg.message))
+    });
+  </script>
+</body>
+
+</html>

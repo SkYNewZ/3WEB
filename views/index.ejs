@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>
+    <%= title %>
+  </title>
+  <link rel='stylesheet' href='/stylesheets/style.css' />
+</head>
+
+<body>
+  <h1>
+    <%= title %>
+  </h1>
+  <p>Welcome to
+    <%= title %>, please login</p>
+  <form method="POST" action="/api/auth/login">
+    <input type="text" name="email" placeholder="email">
+    <br>
+    <input type="password" name="password" placeholder="password">
+    <br>
+    <input type="submit" name="submit" value="Login in">
+  </form>
+
+  <p>Or register</p>
+  <form method="POST" action="/api/auth/register">
+    <input type="text" name="email" placeholder="email">
+    <br>
+    <input type="text" name="username" placeholder="username">
+    <br>
+    <input type="password" name="password" placeholder="password">
+    <br>
+    <input type="password" name="passwordConf" placeholder="password conf">
+    <br>
+    <input type="submit" name="submit" value="Register">
+  </form>
+  <% if (!typeof error == 'undefined') {
+    if (error === 'Unauthorized') {
+      alert('Invalid credentials')
+    } else {
+      console.log(error);
+    }
+   } %>
+</body>
+
+</html>

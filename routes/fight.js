@@ -1,6 +1,7 @@
 var express = require('express')
 var router = express.Router()
 var createError = require('http-errors')
+var User = require('../models/user')
 
 function requiresLogin (req, res, next) {
   if (req.session && req.session.userId) {
@@ -14,7 +15,12 @@ function requiresLogin (req, res, next) {
 }
 
 router.get('/', requiresLogin, function (req, res, next) {
-  res.render('fight')
+  User.findOne({ _id: req.session.userId }, function (err, user) {
+    if (err) {
+      console.log(err)
+    }
+    return res.render('fight', { user: user })
+  })
 })
 
 module.exports = router

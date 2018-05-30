@@ -21,7 +21,7 @@ var UserSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  totalScore: {
+  win: {
     type: Number,
     required: false,
     default: 0
@@ -64,16 +64,13 @@ UserSchema.statics.authenticate = function (email, password, callback) {
     })
 }
 
-UserSchema.static.setScore = function (newScore, userId, callback) {
-  User.findOneAndUpdate({ _id: userId }, { score: newScore }, function (err, user) {
+UserSchema.static.addWin = function (newScore, userId, callback) {
+  User.findOneAndUpdate({ _id: userId }, { $inc: { win: 1 } }, function (err, user) {
     if (err) {
-      return callback(err)
-    } else if (!user) {
-      var notFoundError = new Error('User not found.')
-      notFoundError.status = 404
-      return callback(notFoundError)
+      callback(err)
+    } else {
+      callback(user)
     }
-    return callback(user)
   })
 }
 

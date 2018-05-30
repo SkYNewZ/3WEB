@@ -52,14 +52,16 @@
   </style>
 </head>
 
-<body>
+<body onunload="disconnectFromLobby()">
   <script src="/javascripts/socket.io.js"></script>
   <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
 
   <!-- Main content -->
   <a href="/api/auth/logout" id="logout-button" onclick="logoutUser()">Logout</a>
   <p>Welcome
-    <%= user.username %>
+    <b>
+      <%= user.username %>
+    </b>
   </p>
   <p>List off current connected players</p>
   <ul id="user-connected"></ul>
@@ -76,7 +78,7 @@
   <script>
     // send when a user is connected
     const userCo = '<%= user.username  %>';
-    const socket = io.connect('http://localhost:1234');
+    const socket = io.connect('127.0.0.1:1234');
 
     //send new user is connected
     socket.emit('new_user', userCo);
@@ -101,8 +103,13 @@
       socket.emit('user_deco', userCo);
     }
 
+    function disconnectFromLobby() {
+      socket.emit('disconnectFromLobby', userCo);
+    }
+
     function invite(username) {
       if (confirm(`Send inviation to ${username} ?`)) {
+        // send invitation
         socket.emit('invitation', {
           to: username,
           from: userCo,
@@ -111,9 +118,22 @@
       }
     }
 
-    socket.on("receive_invitation", function (message) {
-      alert(message);
+    socket.on('receive_invitation', function (data) {
+      if (confirm(data.message)) {
+        var room = Math.random().toString(36).substr(2, 8);
+        socket.emit('join', {
+          room: room,
+          user: userCo,
+          against: data.from
+        });
+        window.location.replace("/fight?" + room);
+      }
     });
+
+    socket.on('join', function (data) {
+      console.log('have to redirect')
+      return window.location.replace("/fight?" + data.room);
+    })
 
 
     // chat

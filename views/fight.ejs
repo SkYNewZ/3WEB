@@ -5,20 +5,36 @@
     <title>Fight page</title>
     <link rel='stylesheet' href='/stylesheets/style.css' />
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.1/css/bootstrap.min.css">
+    <script src="/javascripts/socket.io.js"></script>
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <style type="text/css">
         #main-content {
-            width: 60%;
-            height: 400px;
+            width: 800px;
+            height: 600px;
             border: 1px solid black;
             margin: auto;
-            margin-top: 200px;
+            margin-top: 100px;
+            position: relative;
+        }
+
+        #result {
+            position: fixed;
+            width: 500px;
+            height: 200px;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            color: red;
+            font-size: 3em;
+            text-align: center;
+            margin: auto;
         }
 
         .player {
             position: fixed;
             top: 50px;
             width: 200px;
+            font-weight: bold;
         }
 
         #player-one {
@@ -29,36 +45,73 @@
             right: 20px;
             text-align: end
         }
+
+        span.touche {
+            margin-right: 1px;
+            padding-left: 2px;
+            padding-right: 2px;
+            border: 1px solid #6f6f6f;
+            background-color: #cfcfcf;
+            border-radius: 0.2em;
+            font-weight: bold;
+            -moz-border-radius: 0.2em;
+        }
     </style>
 </head>
 
 <body>
-    <div id="player-one" class="player">
-        <p>Player one</p>
+    <div id="player-one" class="player" style="display: none">
+        <p id="player-one-name">Player one</p>
         <div class="progress">
             <div class="progress-bar bg-success" id="life-player-one" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0"
                 aria-valuemax="100">100</div>
         </div>
     </div>
-    <div id="player-two" class="player">
-        <p>Player two</p>
+    <div id="player-two" class="player" style="display: none">
+        <p id="player-two-name">Player two</p>
         <div class="progress">
             <div class="progress-bar bg-success" id="life-player-two" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0"
                 aria-valuemax="100">100</div>
         </div>
     </div>
     <div id="main-content">
-        <!-- Tête -->
-        <svg width="100" height="100">
-            <circle cx="50" cy="50" r="40" stroke="black" stroke-width="4" fill="back" />
-        </svg>
-        <svg height="210" width="500">
-            <line x1="0" y1="0" x2="200" y2="200" style="stroke:rgb(255,0,0);stroke-width:2" />
-        </svg>
+        <div id="result"></div>
+        <canvas id="canvas"></canvas>
     </div>
-    <button onclick="decreaseLifeBar(1, 10)">decrease</button>
+    <div>
+        <h2>Controls :</h2>
+        <ul>
+            <li>Move left:
+                <span class="touche">Q</span>
+            </li>
+            <li>Move right:
+                <span class="touche">D</span>
+            </li>
+            <li>Punch:
+                <span class="touche">Space</span>
+            </li>
+        </ul>
+    </div>
+    <!-- TODO, disconnect the user, and popup for the opponent -->
+    <a href="/lobby" onclick="disconnectFromGame()">Return to lobby</a>
     <script type="text/javascript">
-        function decreaseLifeBar(player, healthPointToRemove) {
+
+        // init socket
+        var socket = io.connect('127.0.0.1:1234');
+        var currentRoomId = location.search.substr(1);
+
+        const currentUsername = '<%= user.username  %>';
+        console.log(`CURRENT CONNECTED USER ---> ${currentUsername}`)
+
+        // update the new socket id
+        socket.on('connect', function () {
+            socket.emit('new_user_in_game', currentUsername, currentRoomId)
+        })
+
+        /**
+         * Decrease the life bar of the given user id
+         */
+        function setLifeBar(player, hp) {
             var player;
             if (player === 1) {
                 player = $('#life-player-one');
@@ -66,20 +119,116 @@
                 player = $('#life-player-two');
             }
             var currentValue = parseInt(player.attr('aria-valuenow'));
-            var finalPoint = currentValue - healthPointToRemove;
+            var finalPoint = hp
             player.attr("aria-valuenow", finalPoint);
             player.css('width', finalPoint + '%');
             player.text(finalPoint)
-            if (finalPoint <= 70 && finalPoint > 50) {
+            if (finalPoint > 70) {
+                player.removeClass().addClass("progress-bar bg-success");
+            } else if (finalPoint <= 70 && finalPoint > 50) {
                 player.removeClass().addClass("progress-bar bg-info");
             } else if (finalPoint > 20 && finalPoint <= 50) {
                 player.removeClass().addClass("progress-bar bg-warning");
             } else if (finalPoint <= 20) {
                 player.removeClass().addClass("progress-bar bg-danger");
-            } else {
-                console.log('encore bcp trop de vie')
             }
+        };
+
+        function disconnectFromGame() {
+            socket.emit('disconnectFromGame')
         }
+
+        var movement = {
+            left: false,
+            right: false,
+            punch: false
+        }
+
+        $(window).keydown(function (event) {
+            switch (event.keyCode) {
+                case 81: // Q
+                    movement.left = true;
+                    break;
+                case 68: // D
+                    movement.right = true;
+                    break;
+                case 32: // space
+                    movement.punch = true;
+                    break;
+            }
+        })
+
+        $(window).keyup(function (event) {
+            switch (event.keyCode) {
+                case 81: // Q
+                    movement.left = false;
+                    break;
+                case 68: // D
+                    movement.right = false;
+                    break;
+                case 32: // space
+                    movement.punch = false;
+                    break;
+            }
+        })
+
+        // send the movement to the server
+        setInterval(function () {
+            socket.emit('movement', movement, currentRoomId);
+        }, 1000 / 60);
+
+        var canvas = document.getElementById('canvas');
+        canvas.width = 800;
+        canvas.height = 600;
+        var context = canvas.getContext('2d');
+        socket.on('state', function (players) {
+            context.clearRect(0, 0, 800, 600);
+            $('#player-one').hide();
+            $('#player-two').hide();
+            for (var id in players) {
+                if (players[id].roomId === currentRoomId) {
+                    curPlayer = players[id]
+                }
+
+                if (curPlayer.displayPunch) {
+                    context.fillStyle = 'black'
+                    context.beginPath()
+                    if (curPlayer.order == 1) {
+                        context.rect(curPlayer.x + curPlayer.width, curPlayer.y + 20, 30, 30);
+                    } else {
+                        context.rect(curPlayer.x - 30, curPlayer.y + 20, 30, 30);
+                    }
+                    context.fill()
+                }
+
+                if (curPlayer.order == 1) {
+                    context.fillStyle = 'yellow'
+                    $('#player-one').show()
+                    $('#player-one-name').text('Player 1 : ' + curPlayer.username.toUpperCase())
+                } else {
+                    context.fillStyle = 'green'
+                    $('#player-two').show()
+                    $('#player-two-name').text('Player 2 : ' + curPlayer.username.toUpperCase())
+                }
+
+                // set the lifebar
+                setLifeBar(curPlayer.order, curPlayer.hp)
+
+                context.beginPath()
+                context.lineWidth = "2";
+                context.strokeStyle = "black";
+                context.rect(curPlayer.x, curPlayer.y, curPlayer.width, curPlayer.height);
+                context.stroke();
+                context.fill()
+
+                if (curPlayer.result === 'victory' && curPlayer.username === currentUsername) {
+                    console.log('victory')
+                    $('#result').text('You Win !!')
+                } else if (curPlayer.result === 'loose' && curPlayer.username === currentUsername) {
+                    $('#result').text('You loose... !!')
+                }
+            }
+        });
     </script>
 </body>
 
